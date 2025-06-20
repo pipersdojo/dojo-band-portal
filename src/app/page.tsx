@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { fetchBands } from "./actions/fetchBands";
 import { useEffect, useState } from "react";
+import AuthForm from "./components/AuthForm";
 
 export default function Home() {
   const [bands, setBands] = useState<any[]>([]);
@@ -78,6 +79,9 @@ export default function Home() {
             ))}
           </ul>
         </div>
+
+        <AuthForm />
+        {/* <InviteMemberForm bandId="00000000-0000-0000-0000-000000000001" /> */}
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a
