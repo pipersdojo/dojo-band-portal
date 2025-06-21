@@ -31,7 +31,7 @@ export default function AcceptInvitePage() {
         setStatus("");
         return;
       }
-      if (data.status !== "pending") {
+      if (data.claimed) {
         setError("This invite has already been used or revoked.");
         setStatus("");
         return;
@@ -76,7 +76,7 @@ export default function AcceptInvitePage() {
     // Mark invite as used
     const { error: inviteError } = await supabase
       .from("invitations")
-      .update({ status: "used", used_at: new Date().toISOString() })
+      .update({ claimed: true, used_at: new Date().toISOString() })
       .eq("id", invite.id);
     if (inviteError) {
       console.error("[Invite] Error updating invitation:", inviteError);
