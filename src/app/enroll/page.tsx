@@ -1,106 +1,75 @@
 "use client";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function EnrollPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const bandId = searchParams.get("band") || "";
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [bandCode, setBandCode] = useState("");
-  const [status, setStatus] = useState("");
+  const [bandName, setBandName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  async function handleEnroll(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("");
+    setLoading(true);
     setError(null);
-    if (!bandCode) {
-      setError("Please enter a band code.");
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      setError("You must be logged in to create a band.");
+      setLoading(false);
       return;
     }
-    // 1. Look up band by code
-    const { data: bandData, error: bandError } = await supabase
+    // Create band
+    const { data: band, error: bandError } = await supabase
       .from("bands")
-      .select("id")
-      .eq("code", bandCode)
+      .insert({ name: bandName, admin_id: user.id })
+      .select()
       .single();
-    if (bandError || !bandData) {
-      setError("Invalid band code. Please check with your band admin.");
+    if (bandError || !band) {
+      setError(bandError?.message || "Failed to create band.");
+      setLoading(false);
       return;
     }
-    // 2. Sign up the user
-    const signUpPayload = {
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        redirectTo: "http://localhost:3000/auth/callback"
-      }
-    };
-    const { data, error: signUpError } = await supabase.auth.signUp(signUpPayload);
-    if (signUpError) {
-      setError(signUpError.message);
+    // Update user to be admin of new band
+    const { error: userUpdateError } = await supabase
+      .from("users")
+      .update({ band_id: band.id, role: "admin" })
+      .eq("id", user.id);
+    if (userUpdateError) {
+      setError(userUpdateError.message);
+      setLoading(false);
       return;
     }
-    // 3. Store bandId in localStorage for use after login
-    localStorage.setItem("pending_band_id", bandData.id);
-    setStatus("Account created! Please check your email to confirm and log in.");
-    setEmail("");
-    setPassword("");
-    setFullName("");
-    setBandCode("");
-    setTimeout(() => router.push("/"), 4000);
+    // Redirect to dashboard
+    router.push("/dashboard");
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-6 border rounded">
-      <h1 className="text-xl font-bold mb-4">Create Your Band Member Account</h1>
-      <form onSubmit={handleEnroll}>
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={fullName}
-          onChange={e => setFullName(e.target.value)}
-          className="block w-full mb-2 p-2 border rounded"
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="block w-full mb-2 p-2 border rounded"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="block w-full mb-2 p-2 border rounded"
-          required
-        />
-        <input
-          type="text"
-          placeholder="Band Code"
-          value={bandCode}
-          onChange={e => setBandCode(e.target.value)}
-          className="block w-full mb-2 p-2 border rounded"
-          required
-        />
+    <div className="max-w-md mx-auto py-16 px-4">
+      <h1 className="text-2xl font-bold mb-6 text-center">Create a New Band</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="bandName" className="block mb-1 font-medium">Band Name</label>
+          <input
+            id="bandName"
+            type="text"
+            className="w-full border rounded px-3 py-2"
+            value={bandName}
+            onChange={e => setBandName(e.target.value)}
+            required
+            disabled={loading}
+          />
+        </div>
+        {error && <p className="text-red-600">{error}</p>}
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-green-600 text-white px-6 py-2 rounded font-semibold hover:bg-green-700 w-full"
+          disabled={loading}
         >
-          Create Account
+          {loading ? "Creating..." : "Create Band"}
         </button>
       </form>
-      {error && <p className="text-red-600 mt-2">{error}</p>}
-      {status && <p className="text-green-600 mt-2">{status}</p>}
     </div>
   );
 }
