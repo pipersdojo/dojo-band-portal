@@ -1,43 +1,62 @@
--- Supabase schema for Dojo University Band Portal (many-to-many band membership)
--- Table: band_members
-create table band_members (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id),
-  band_id uuid references bands(id),
-  role text not null check (role in ('admin', 'member')),
-  created_at timestamptz default now()
-);
+-- Supabase schema for Dojo University Band Portal (many-to-many band membership, lessons, folders)
 
--- Table: bands
 create table bands (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   subscription_status text not null default 'inactive',
   created_at timestamptz default now(),
-  code text unique
+  code text unique,
+  lesson_limit integer not null default 20
 );
 
--- Table: custom_requests
-create table custom_requests (
+create table users (
   id uuid primary key default gen_random_uuid(),
-  band_id uuid references bands(id) not null,
-  user_id uuid references users(id) not null,
-  type text not null check (type in ('composition', 'conversion')),
-  description text,
-  status text not null default 'pending',
+  email text not null unique,
+  full_name text,
+  kajabi_offer_id text,
   created_at timestamptz default now()
 );
 
--- Table: folders
+create table band_members (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id),
+  band_id uuid not null references bands(id),
+  role text not null check (role in ('admin', 'member')),
+  created_at timestamptz default now(),
+  unique (user_id, band_id)
+);
+
+create table lessons (
+  id uuid primary key default gen_random_uuid(),
+  soundslice_id text not null,
+  title text not null,
+  created_at timestamptz default now(),
+  is_public boolean not null default false,
+  band_id uuid references bands(id)
+);
+
+create table band_lessons (
+  band_id uuid not null references bands(id),
+  lesson_id uuid not null references lessons(id),
+  added_by uuid references users(id),
+  added_at timestamptz default now(),
+  primary key (band_id, lesson_id)
+);
+
 create table folders (
   id uuid primary key default gen_random_uuid(),
-  band_id uuid references bands(id) not null,
+  band_id uuid not null references bands(id),
   name text not null,
   created_by uuid references users(id),
   created_at timestamptz default now()
 );
 
--- Table: invitations
+create table folder_lessons (
+  folder_id uuid not null references folders(id),
+  lesson_id uuid not null references lessons(id),
+  primary key (folder_id, lesson_id)
+);
+
 create table invitations (
   id uuid primary key default gen_random_uuid(),
   email text not null,
@@ -50,21 +69,13 @@ create table invitations (
   claimed boolean not null default false
 );
 
--- Table: lessons
-create table lessons (
+create table custom_requests (
   id uuid primary key default gen_random_uuid(),
-  folder_id uuid references folders(id) not null,
-  soundslice_id text not null,
-  title text not null,
-  created_at timestamptz default now()
-);
-
--- Table: users
-create table users (
-  id uuid primary key default gen_random_uuid(),
-  email text not null unique,
-  full_name text,
-  kajabi_offer_id text,
+  band_id uuid not null references bands(id),
+  user_id uuid not null references users(id),
+  type text not null check (type in ('composition', 'conversion')),
+  description text,
+  status text not null default 'pending',
   created_at timestamptz default now()
 );
 
