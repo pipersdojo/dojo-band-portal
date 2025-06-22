@@ -32,26 +32,11 @@ export default function AuthForm() {
       // After successful login, upsert user profile with band_id from localStorage (if present)
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!userError && userData?.user) {
-        const user = userData.user;
         const band_id = localStorage.getItem("pending_band_id") || null;
-        const full_name = user.user_metadata?.full_name || null;
         if (band_id) {
-          const upsertPayload = [{
-            id: user.id,
-            email: user.email,
-            full_name,
-            band_id,
-            role: "member",
-            created_at: new Date().toISOString(),
-          }];
-          console.log("[Login] Upserting user profile:", upsertPayload);
-          const { error: dbError } = await supabase.from("users").upsert(upsertPayload);
-          if (dbError) {
-            setError(dbError.message);
-          } else {
-            // Remove band_id from localStorage after use
-            localStorage.removeItem("pending_band_id");
-          }
+          // TODO: Insert into band_members instead of users (if needed)
+          // For now, just remove the pending_band_id to avoid errors
+          localStorage.removeItem("pending_band_id");
         }
       }
     }

@@ -23,7 +23,7 @@ export default function EnrollPage() {
     // Create band
     const { data: band, error: bandError } = await supabase
       .from("bands")
-      .insert({ name: bandName, admin_id: user.id })
+      .insert({ name: bandName })
       .select()
       .single();
     if (bandError || !band) {
@@ -31,13 +31,12 @@ export default function EnrollPage() {
       setLoading(false);
       return;
     }
-    // Update user to be admin of new band
-    const { error: userUpdateError } = await supabase
-      .from("users")
-      .update({ band_id: band.id, role: "admin" })
-      .eq("id", user.id);
-    if (userUpdateError) {
-      setError(userUpdateError.message);
+    // Add creator to band_members as admin
+    const { error: bandMemberError } = await supabase
+      .from("band_members")
+      .insert({ band_id: band.id, user_id: user.id, role: "admin" });
+    if (bandMemberError) {
+      setError(bandMemberError.message);
       setLoading(false);
       return;
     }
