@@ -43,6 +43,7 @@ export default function AdminDashboard() {
       try {
         // Fetch current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        console.log('[DEBUG] Current user:', user);
         if (userError) {
           setError(`Auth error: ${userError.message}`);
           setLoading(false);
@@ -55,8 +56,9 @@ export default function AdminDashboard() {
         // Fetch all bands where user is a member (or admin)
         const { data: bandMemberships, error: bandMembershipsError } = await supabase
           .from('band_members')
-          .select('band:bands(id, name), role')
+          .select('band:bands(id, name), role, band_id, user_id')
           .eq('user_id', user.id);
+        console.log('[DEBUG] band_memberships:', bandMemberships);
         if (bandMembershipsError) {
           setError(`Band memberships error: ${bandMembershipsError.message}`);
           setLoading(false);
@@ -65,6 +67,7 @@ export default function AdminDashboard() {
         const bandsList = (bandMemberships || [])
           .map((bm: any) => bm.band)
           .filter((b: any) => b && b.id && b.name);
+        console.log('[DEBUG] bandsList:', bandsList);
         setBands(bandsList);
         // Auto-select first band if only one, or keep previous selection
         if (!selectedBand && bandsList.length === 1) {
