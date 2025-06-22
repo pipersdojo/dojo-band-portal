@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import UserNav from "./components/UserNav";
+import AppNav from "./components/AppNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,17 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <nav className="bg-gray-100 py-4 px-6 flex gap-6 mb-8 items-center">
-          <a href="/" className="font-semibold">
-            Home
-          </a>
-          <a href="/dashboard">Dashboard</a>
-          <a href="/band">My Band</a>
-          <a href="/profile">Profile</a>
-          <a href="/admin/dashboard">Admin</a>
-          <div className="flex-1" />
-          <UserNav />
-        </nav>
+        <AppNav />
         {children}
       </body>
     </html>

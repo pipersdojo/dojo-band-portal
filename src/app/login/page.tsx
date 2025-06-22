@@ -11,7 +11,7 @@ export default function LoginPage() {
       <AuthForm />
       <div className="mt-6 text-sm text-gray-500">
         {/* Future: Add Forgot Password, Sign Up, or Super Admin options here */}
-        <p>Need to create a band? <a href="/enroll" className="text-blue-600 hover:underline">Sign up here</a>.</p>
+        {/* Create a band link removed for logged-out users */}
       </div>
     </div>
   );

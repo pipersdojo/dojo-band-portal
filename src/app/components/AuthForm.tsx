@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function AuthForm() {
   const [email, setEmail] = useState("");
@@ -8,6 +9,7 @@ export default function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +41,8 @@ export default function AuthForm() {
           localStorage.removeItem("pending_band_id");
         }
       }
+      // Redirect to home/dashboard
+      router.push("/");
     }
     setLoading(false);
   }

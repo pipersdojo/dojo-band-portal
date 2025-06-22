@@ -37,7 +37,12 @@ export default function UserNav() {
   if (user) {
     return (
       <div className="flex items-center gap-2 ml-auto">
-        <span className="text-gray-700 text-sm">{user.email}</span>
+        <a
+          href="/profile"
+          className="text-gray-700 text-sm hover:underline"
+        >
+          {user.email}
+        </a>
         <button
           className="text-blue-600 hover:underline text-sm"
           onClick={handleLogout}
