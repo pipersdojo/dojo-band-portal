@@ -81,4 +81,29 @@ These restrictions are enforced both in the UI (conditional rendering of actions
 
 ---
 
-_Last updated: June 22, 2025_
+## Recent Debugging & RLS Policy Lessons (June 25, 2025)
+
+### Debugging Band Member Access to Lessons in Folders
+- Issue: Band members (non-admins) could not see lessons in folders, even though they were listed as members and folders/lessons existed.
+- Cause: The RLS (Row Level Security) policy on the `folder_lessons` table only allowed users with the `admin` role to select rows. Members were excluded.
+- Solution: The RLS policy was updated to allow all band members (not just admins) to select rows from `folder_lessons` for their band. Example policy:
+
+```sql
+EXISTS (
+  SELECT 1
+  FROM (folders
+    JOIN band_members ON band_members.band_id = folders.band_id)
+  WHERE folders.id = folder_lessons.folder_id
+    AND band_members.user_id = auth.uid()
+)
+```
+- Result: After updating the policy, members can now see lessons in folders as expected.
+
+### Debugging/Developer Experience Improvements
+- Added a reusable `UserLogger` React component that logs the current authenticated user and their band memberships to the browser console on every page. This helps quickly diagnose user/session issues.
+- Added detailed debug logging to the band page to show the results of all Supabase queries (band, members, folders, lessons, join tables) and any errors, making it easier to pinpoint RLS or data issues.
+- Provided SQL queries for inspecting join tables and RLS policies directly in Supabase for future troubleshooting.
+
+---
+
+_Last updated: June 25, 2025_

@@ -1,4 +1,5 @@
 "use client";
+import UserLogger from "../../components/UserLogger";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -107,28 +108,31 @@ export default function AuthCallbackPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-6 border rounded">
-      <h1 className="text-xl font-bold mb-4">Authentication Callback</h1>
-      <p className="mb-4">{status}</p>
-      {showReset && (
-        <form onSubmit={handleReset}>
-          <input
-            type="password"
-            placeholder="New password"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            className="block w-full mb-2 p-2 border rounded"
-            required
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Set New Password
-          </button>
-        </form>
-      )}
-      {error && <p className="text-red-600 mt-2">{error}</p>}
-    </div>
+    <>
+      <UserLogger />
+      <div className="max-w-md mx-auto mt-16 p-6 border rounded">
+        <h1 className="text-xl font-bold mb-4">Authentication Callback</h1>
+        <p className="mb-4">{status}</p>
+        {showReset && (
+          <form onSubmit={handleReset}>
+            <input
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              className="block w-full mb-2 p-2 border rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Set New Password
+            </button>
+          </form>
+        )}
+        {error && <p className="text-red-600 mt-2">{error}</p>}
+      </div>
+    </>
   );
 }

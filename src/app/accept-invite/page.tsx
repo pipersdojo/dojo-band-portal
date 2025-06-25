@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AuthForm from "@/app/components/AuthForm";
+import UserLogger from "../components/UserLogger";
 
 export default function AcceptInvitePage() {
   const router = useRouter();
@@ -88,36 +89,39 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-6 border rounded">
-      <h1 className="text-xl font-bold mb-4">Accept Band Invitation</h1>
-      {status && <p className="mb-4">{status}</p>}
-      {error && <p className="text-red-600 mb-4">{error}</p>}
-      {invite && !error && (
-        <div>
-          <p>
-            You have been invited to join band <b>{invite.band_id}</b> as a{" "}
-            <b>{invite.role}</b> with email <b>{invite.email}</b>.
-          </p>
-          {!user ? (
-            <>
-              <p>
-                Please log in or sign up with this email to accept the
-                invitation.
-              </p>
-              <AuthForm />
-            </>
-          ) : (
-            <>
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
-                onClick={claimInvite}
-              >
-                Accept Invite
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+    <>
+      <UserLogger />
+      <div className="max-w-md mx-auto mt-16 p-6 border rounded">
+        <h1 className="text-xl font-bold mb-4">Accept Band Invitation</h1>
+        {status && <p className="mb-4">{status}</p>}
+        {error && <p className="text-red-600 mb-4">{error}</p>}
+        {invite && !error && (
+          <div>
+            <p>
+              You have been invited to join band <b>{invite.band_id}</b> as a{" "}
+              <b>{invite.role}</b> with email <b>{invite.email}</b>.
+            </p>
+            {!user ? (
+              <>
+                <p>
+                  Please log in or sign up with this email to accept the
+                  invitation.
+                </p>
+                <AuthForm />
+              </>
+            ) : (
+              <>
+                <button
+                  className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
+                  onClick={claimInvite}
+                >
+                  Accept Invite
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

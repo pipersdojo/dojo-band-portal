@@ -1,4 +1,5 @@
 "use client";
+import UserLogger from "../components/UserLogger";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -45,30 +46,33 @@ export default function EnrollPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto py-16 px-4">
-      <h1 className="text-2xl font-bold mb-6 text-center">Create a New Band</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="bandName" className="block mb-1 font-medium">Band Name</label>
-          <input
-            id="bandName"
-            type="text"
-            className="w-full border rounded px-3 py-2"
-            value={bandName}
-            onChange={e => setBandName(e.target.value)}
-            required
+    <>
+      <UserLogger />
+      <div className="max-w-md mx-auto py-16 px-4">
+        <h1 className="text-2xl font-bold mb-6 text-center">Create a New Band</h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="bandName" className="block mb-1 font-medium">Band Name</label>
+            <input
+              id="bandName"
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              value={bandName}
+              onChange={e => setBandName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </div>
+          {error && <p className="text-red-600">{error}</p>}
+          <button
+            type="submit"
+            className="bg-green-600 text-white px-6 py-2 rounded font-semibold hover:bg-green-700 w-full"
             disabled={loading}
-          />
-        </div>
-        {error && <p className="text-red-600">{error}</p>}
-        <button
-          type="submit"
-          className="bg-green-600 text-white px-6 py-2 rounded font-semibold hover:bg-green-700 w-full"
-          disabled={loading}
-        >
-          {loading ? "Creating..." : "Create Band"}
-        </button>
-      </form>
-    </div>
+          >
+            {loading ? "Creating..." : "Create Band"}
+          </button>
+        </form>
+      </div>
+    </>
   );
 }

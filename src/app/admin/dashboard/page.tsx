@@ -1,4 +1,5 @@
 "use client";
+import UserLogger from "../../components/UserLogger";
 
 // Admin Dashboard for managing band members and invites
 import { useEffect, useState } from 'react';
@@ -137,95 +138,94 @@ export default function AdminDashboard() {
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">My Bands</h2>
-        <div className="mb-4">
-          {bands.length > 1 && (
-            <select
-              value={selectedBand?.id || ''}
-              onChange={e => {
-                const band = bands.find(b => b.id === e.target.value);
-                setSelectedBand(band || null);
-              }}
-              className="border rounded px-2 py-1"
-            >
-              <option value="" disabled>Select a band</option>
-              {bands
-                .filter((bm: any) => bm.role === 'admin')
-                .map((bm: any) => bm.band)
-                .filter((b: any) => b && b.id && b.name)
-                .map((band: any) => (
+    <>
+      <UserLogger />
+      <div className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-2">My Bands</h2>
+          <div className="mb-4">
+            {bands.length > 1 && (
+              <select
+                value={selectedBand?.id || ''}
+                onChange={e => {
+                  const band = bands.find(b => b.id === e.target.value);
+                  setSelectedBand(band || null);
+                }}
+                className="border rounded px-2 py-1"
+              >
+                <option value="" disabled>Select a band</option>
+                {bands.map((band) => (
                   <option key={band.id} value={band.id}>{band.name}</option>
                 ))}
-            </select>
-          )}
-          {bands.length === 1 && <span>{bands[0].name}</span>}
-          {bands.length === 0 && <span>No bands found.</span>}
-        </div>
-      </section>
-      {selectedBand && (
-        <>
-          <section className="mb-8">
-            <h2 className="text-xl font-semibold mb-2">Band Members</h2>
-            <table className="w-full border mb-4">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members
-                  .filter((m) => m.role !== "admin")
-                  .map((m) => (
-                    <tr key={m.id}>
-                      <td>{m.user?.email}</td>
-                      <td>{m.role}</td>
+              </select>
+            )}
+            {bands.length === 1 && <span>{bands[0].name}</span>}
+            {bands.length === 0 && <span>No bands found.</span>}
+          </div>
+        </section>
+        {selectedBand && (
+          <>
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold mb-2">Band Members</h2>
+              <table className="w-full border mb-4">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members
+                    .filter((m) => m.role !== "admin")
+                    .map((m) => (
+                      <tr key={m.id}>
+                        <td>{m.user?.email}</td>
+                        <td>{m.role}</td>
+                        <td>
+                          {/* TODO: Add actions (remove) */}
+                          <button className="text-red-600 hover:underline" disabled>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </section>
+            <section>
+              <h2 className="text-xl font-semibold mb-2">Pending Invites</h2>
+              <table className="w-full border">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invites.filter(inv => !inv.claimed).map((inv) => (
+                    <tr key={inv.id}>
+                      <td>{inv.email}</td>
+                      <td>{new Date(inv.created_at).toLocaleString()}</td>
+                      <td>{inv.expires_at ? new Date(inv.expires_at).toLocaleString() : 'N/A'}</td>
+                      <td>Pending</td>
                       <td>
-                        {/* TODO: Add actions (remove) */}
-                        <button className="text-red-600 hover:underline" disabled>Remove</button>
+                        {/* TODO: Add actions (revoke) */}
+                        <button className="text-red-600 hover:underline" disabled>Revoke</button>
                       </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
-          </section>
-          <section>
-            <h2 className="text-xl font-semibold mb-2">Pending Invites</h2>
-            <table className="w-full border">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Created</th>
-                  <th>Expires</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invites.filter(inv => !inv.claimed).map((inv) => (
-                  <tr key={inv.id}>
-                    <td>{inv.email}</td>
-                    <td>{new Date(inv.created_at).toLocaleString()}</td>
-                    <td>{inv.expires_at ? new Date(inv.expires_at).toLocaleString() : 'N/A'}</td>
-                    <td>Pending</td>
-                    <td>
-                      {/* TODO: Add actions (revoke) */}
-                      <button className="text-red-600 hover:underline" disabled>Revoke</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-4">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded" disabled>Send Invite</button>
-            </div>
-          </section>
-        </>
-      )}
-    </div>
+                </tbody>
+              </table>
+              <div className="mt-4">
+                <button className="bg-blue-600 text-white px-4 py-2 rounded" disabled>Send Invite</button>
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+    </>
   );
 }

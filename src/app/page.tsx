@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AuthForm from "./components/AuthForm";
+import UserLogger from "./components/UserLogger";
 
 interface Band {
   id: string;
@@ -79,26 +80,29 @@ export default function Home() {
 
   // Logged in: show dashboard with bands
   return (
-    <div className="max-w-2xl mx-auto py-16">
-      <h1 className="text-3xl font-bold mb-6">Welcome, {user.email}!</h1>
-      <h2 className="text-xl font-semibold mb-4">Your Bands</h2>
-      {bands.length === 0 ? (
-        <p>You are not a member of any bands yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {bands.map((band) => (
-            <li key={band.id} className="border rounded p-4 flex items-center justify-between gap-4">
-              <a href={`/band/${band.id}`} className="font-semibold text-blue-700 hover:underline">{band.name}</a>
-              <div className="flex gap-2">
-                <a href={`/band/${band.id}`} className="text-gray-700 hover:underline">View</a>
-                {band.role === 'admin' && (
-                  <a href={`/admin/dashboard?band=${band.id}`} className="text-blue-600 hover:underline">Manage</a>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <>
+      <UserLogger />
+      <div className="max-w-2xl mx-auto py-16">
+        <h1 className="text-3xl font-bold mb-6">Welcome, {user.email}!</h1>
+        <h2 className="text-xl font-semibold mb-4">Your Bands</h2>
+        {bands.length === 0 ? (
+          <p>You are not a member of any bands yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {bands.map((band) => (
+              <li key={band.id} className="border rounded p-4 flex items-center justify-between gap-4">
+                <a href={`/band/${band.id}`} className="font-semibold text-blue-700 hover:underline">{band.name}</a>
+                <div className="flex gap-2">
+                  <a href={`/band/${band.id}`} className="text-gray-700 hover:underline">View</a>
+                  {band.role === 'admin' && (
+                    <a href={`/admin/dashboard?band=${band.id}`} className="text-blue-600 hover:underline">Manage</a>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
   );
 }
