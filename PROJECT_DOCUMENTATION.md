@@ -46,6 +46,22 @@ The Dojo University Band Portal is a web application for managing bands, members
 - Only admins can manage members and invitations.
 - RLS policies are updated for all new tables and flows; further refinement ongoing as features expand.
 
+## Permissions & Access Control
+
+- **Admin-only actions:** Only users with the `admin` role in a band (as defined in `band_members`) can:
+  - Access the Admin Dashboard (`/admin/dashboard`)
+  - Manage members and invitations
+  - Add, update, or remove folders
+  - Add, update, or remove lessons
+  - Add public lessons to the band
+- **Members (non-admins):**
+  - Cannot access the Admin Dashboard or any `/admin` routes
+  - Cannot add, update, or remove folders, lessons, or public lessons
+  - Can only view band content and their own profile
+  - In the future, members will also be restricted from viewing or managing any band payment or subscription information
+
+These restrictions are enforced both in the UI (conditional rendering of actions/links) and at the database level (via Supabase RLS policies).
+
 ## Development Notes
 - All logic and queries should use `band_members` for membership checks.
 - Deprecated columns and old logic have been removed from the schema and codebase.
