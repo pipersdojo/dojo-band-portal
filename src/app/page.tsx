@@ -8,6 +8,7 @@ import AuthForm from "./components/AuthForm";
 interface Band {
   id: string;
   name: string;
+  role?: string; // Add role to Band
 }
 
 export default function Home() {
@@ -25,16 +26,17 @@ export default function Home() {
       } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
-        // Fetch all bands where user is a member
+        // Fetch all bands where user is a member, including role
         const { data: bandMemberships, error: bandMembershipsError } = await supabase
           .from("band_members")
-          .select("band:bands(id, name)")
+          .select("band:bands(id, name), role")
           .eq("user_id", user.id);
         if (bandMembershipsError) {
           setError(bandMembershipsError.message);
         } else {
+          // Map role into bands
           const bandsList = (bandMemberships || [])
-            .map((bm: any) => bm.band)
+            .map((bm: any) => ({ ...bm.band, role: bm.role }))
             .filter((b: any) => b && b.id && b.name);
           setBands(bandsList);
         }
@@ -89,7 +91,9 @@ export default function Home() {
               <a href={`/band/${band.id}`} className="font-semibold text-blue-700 hover:underline">{band.name}</a>
               <div className="flex gap-2">
                 <a href={`/band/${band.id}`} className="text-gray-700 hover:underline">View</a>
-                <a href={`/admin/dashboard?band=${band.id}`} className="text-blue-600 hover:underline">Manage</a>
+                {band.role === 'admin' && (
+                  <a href={`/admin/dashboard?band=${band.id}`} className="text-blue-600 hover:underline">Manage</a>
+                )}
               </div>
             </li>
           ))}

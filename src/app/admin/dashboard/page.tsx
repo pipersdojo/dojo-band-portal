@@ -44,6 +44,9 @@ export default function AdminDashboard() {
         // Fetch current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         console.log('[DEBUG] Current user:', user);
+        if (user) {
+          console.log('[DEBUG] user.id used for query:', user.id);
+        }
         if (userError) {
           setError(`Auth error: ${userError.message}`);
           setLoading(false);
@@ -58,17 +61,23 @@ export default function AdminDashboard() {
           .from('band_members')
           .select('band:bands(id, name), role, band_id, user_id')
           .eq('user_id', user.id);
-        console.log('[DEBUG] band_memberships:', bandMemberships);
+        console.log('[DEBUG] bandMemberships result:', bandMemberships);
         if (bandMembershipsError) {
           setError(`Band memberships error: ${bandMembershipsError.message}`);
           setLoading(false);
           return;
         }
+        const adminBands = (bandMemberships || []).filter((bm: any) => bm.role === 'admin').map((bm: any) => bm.band).filter((b: any) => b && b.id && b.name);
         const bandsList = (bandMemberships || [])
           .map((bm: any) => bm.band)
           .filter((b: any) => b && b.id && b.name);
-        console.log('[DEBUG] bandsList:', bandsList);
         setBands(bandsList);
+        // If user is not an admin of any band, redirect
+        if (adminBands.length === 0) {
+          setError('You must be an admin to access this page.');
+          router.push('/');
+          return;
+        }
         // Auto-select first band if only one, or keep previous selection
         if (!selectedBand && bandsList.length === 1) {
           setSelectedBand(bandsList[0]);
@@ -143,9 +152,13 @@ export default function AdminDashboard() {
               className="border rounded px-2 py-1"
             >
               <option value="" disabled>Select a band</option>
-              {bands.map(band => (
-                <option key={band.id} value={band.id}>{band.name}</option>
-              ))}
+              {bands
+                .filter((bm: any) => bm.role === 'admin')
+                .map((bm: any) => bm.band)
+                .filter((b: any) => b && b.id && b.name)
+                .map((band: any) => (
+                  <option key={band.id} value={band.id}>{band.name}</option>
+                ))}
             </select>
           )}
           {bands.length === 1 && <span>{bands[0].name}</span>}
@@ -165,17 +178,18 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {members.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.user?.email}</td>
-                    <td>{m.role}</td>
-                    <td>
-                      {/* TODO: Add actions (change role, remove) */}
-                      <button className="text-blue-600 hover:underline mr-2" disabled>Change Role</button>
-                      <button className="text-red-600 hover:underline" disabled>Remove</button>
-                    </td>
-                  </tr>
-                ))}
+                {members
+                  .filter((m) => m.role !== "admin")
+                  .map((m) => (
+                    <tr key={m.id}>
+                      <td>{m.user?.email}</td>
+                      <td>{m.role}</td>
+                      <td>
+                        {/* TODO: Add actions (remove) */}
+                        <button className="text-red-600 hover:underline" disabled>Remove</button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </section>

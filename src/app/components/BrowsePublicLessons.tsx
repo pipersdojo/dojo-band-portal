@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function BrowsePublicLessons({ bandId, onAdd }: { bandId: string, onAdd: (lesson: any) => void }) {
+export default function BrowsePublicLessons({ bandId, onAdd, isAdmin = false }: { bandId: string, onAdd: (lesson: any) => void, isAdmin?: boolean }) {
   const [publicLessons, setPublicLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function BrowsePublicLessons({ bandId, onAdd }: { bandId: string,
           {publicLessons.map(lesson => (
             <li key={lesson.id} className="mb-1 flex justify-between items-center">
               <span>{lesson.title}</span>
-              <button className="ml-2 text-blue-600 text-xs" onClick={() => onAdd(lesson)}>Add</button>
+              {isAdmin && <button className="ml-2 text-blue-600 text-xs" onClick={() => onAdd(lesson)}>Add</button>}
             </li>
           ))}
         </ul>

@@ -16,6 +16,7 @@ export default function BandViewPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBand = async () => {
@@ -45,6 +46,15 @@ export default function BandViewPage() {
           role: m.role,
           user: Array.isArray(m.user) ? m.user[0] : m.user
         })));
+      }
+      // Fetch current user and their role
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const userMember = (membersData || []).find((m: any) => {
+          const u = Array.isArray(m.user) ? m.user[0] : m.user;
+          return u && u.id === user.id;
+        });
+        setUserRole(userMember?.role || null);
       }
       // Fetch folders
       const { data: foldersData } = await supabase
@@ -100,9 +110,9 @@ export default function BandViewPage() {
         ))}
       </ul>
       <div className="bg-gray-50 p-4 rounded shadow mb-6">
-        <FolderList folders={folders} onSelectFolder={setSelectedFolder} />
-        <LessonList lessons={lessons} />
-        <BrowsePublicLessons bandId={bandId} onAdd={handleAddLesson} />
+        <FolderList folders={folders} onSelectFolder={setSelectedFolder} isAdmin={userRole === 'admin'} />
+        <LessonList lessons={lessons} isAdmin={userRole === 'admin'} />
+        <BrowsePublicLessons bandId={bandId} onAdd={handleAddLesson} isAdmin={userRole === 'admin'} />
       </div>
     </div>
   );
