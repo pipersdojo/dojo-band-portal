@@ -35,6 +35,9 @@ export default function AdminDashboard() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -184,8 +187,30 @@ export default function AdminDashboard() {
                         <td>{m.user?.email}</td>
                         <td>{m.role}</td>
                         <td>
-                          {/* TODO: Add actions (remove) */}
-                          <button className="text-red-600 hover:underline" disabled>Remove</button>
+                          <button
+                            className="text-red-600 hover:underline"
+                            onClick={async () => {
+                              if (!window.confirm(`Remove ${m.user?.email} from this band?`)) return;
+                              setLoading(true);
+                              setError("");
+                              try {
+                                const { error: removeError } = await supabase
+                                  .from('band_members')
+                                  .delete()
+                                  .eq('id', m.id);
+                                if (removeError) {
+                                  setError(`Remove error: ${removeError.message}`);
+                                } else {
+                                  setMembers(members.filter(mem => mem.id !== m.id));
+                                }
+                              } catch (e) {
+                                setError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
+                              }
+                              setLoading(false);
+                            }}
+                          >
+                            Remove
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -219,9 +244,56 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4">
-                <button className="bg-blue-600 text-white px-4 py-2 rounded" disabled>Send Invite</button>
-              </div>
+              <form
+                className="mt-4 flex gap-2 items-center"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setInviteLoading(true);
+                  setInviteSuccess("");
+                  setError("");
+                  try {
+                    const res = await fetch("/api/invite-member", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: inviteEmail, bandId: selectedBand?.id }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setError(data.error || "Failed to send invite");
+                    } else {
+                      setInviteSuccess("Invite sent!");
+                      setInviteEmail("");
+                      // Refresh invites
+                      const { data: invitesData, error: invitesError } = await supabase
+                        .from('invitations')
+                        .select('id, email, created_at, expires_at, claimed')
+                        .eq('band_id', selectedBand.id);
+                      if (!invitesError) setInvites(invitesData || []);
+                    }
+                  } catch (e) {
+                    setError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
+                  }
+                  setInviteLoading(false);
+                }}
+              >
+                <input
+                  type="email"
+                  className="border rounded px-2 py-1"
+                  placeholder="Invite email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  required
+                  disabled={inviteLoading}
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                  disabled={!inviteEmail || inviteLoading}
+                >
+                  {inviteLoading ? "Sending..." : "Send Invite"}
+                </button>
+                {inviteSuccess && <span className="text-green-600 ml-2">{inviteSuccess}</span>}
+              </form>
             </section>
           </>
         )}

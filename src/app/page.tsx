@@ -15,6 +15,7 @@ interface Band {
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [bands, setBands] = useState<Band[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -41,6 +42,13 @@ export default function Home() {
             .filter((b: any) => b && b.id && b.name);
           setBands(bandsList);
         }
+        // Fetch pending invites for this user
+        const { data: invitesData } = await supabase
+          .from("invitations")
+          .select("*")
+          .eq("email", user.email)
+          .eq("claimed", false);
+        setInvites(invitesData || []);
       }
       setLoading(false);
     };
@@ -101,6 +109,45 @@ export default function Home() {
               </li>
             ))}
           </ul>
+        )}
+        {invites.length > 0 && (
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6 rounded">
+            <h2 className="font-semibold mb-2">You have been invited to join a band!</h2>
+            {invites.map((invite) => (
+              <div key={invite.id} className="mb-2">
+                <span>Band invite for <b>{invite.email}</b></span>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    className="bg-green-600 text-white px-3 py-1 rounded"
+                    onClick={async () => {
+                      // Accept invite: add to band_members, mark invite claimed
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user || !user.id) return;
+                      await supabase.from("band_members").insert({
+                        user_id: user.id,
+                        band_id: invite.band_id,
+                        role: invite.role,
+                      });
+                      await supabase.from("invitations").update({ claimed: true, used_at: new Date().toISOString() }).eq("id", invite.id);
+                      setInvites(invites.filter((i) => i.id !== invite.id));
+                    }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    className="bg-gray-400 text-white px-3 py-1 rounded"
+                    onClick={async () => {
+                      // Decline invite: mark invite claimed
+                      await supabase.from("invitations").update({ claimed: true, used_at: new Date().toISOString() }).eq("id", invite.id);
+                      setInvites(invites.filter((i) => i.id !== invite.id));
+                    }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </>
