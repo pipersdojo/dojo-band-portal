@@ -39,6 +39,8 @@ export default function AdminDashboard() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [userLimit, setUserLimit] = useState<number | undefined>(undefined);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -110,6 +112,17 @@ export default function AdminDashboard() {
       setLoading(true);
       setError('');
       try {
+        // Fetch user_limit for selected band
+        const { data: bandRow, error: bandRowError } = await supabase
+          .from('bands')
+          .select('user_limit')
+          .eq('id', selectedBand.id)
+          .maybeSingle();
+        if (!bandRowError && bandRow && bandRow.user_limit !== undefined) {
+          setUserLimit(bandRow.user_limit);
+        } else {
+          setUserLimit(undefined);
+        }
         // Fetch members for selected band
         const { data: membersData, error: membersError } = await supabase
           .from('band_members')
@@ -205,6 +218,10 @@ export default function AdminDashboard() {
           <>
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-2">Band Members</h2>
+              {/* Members/Invites usage summary */}
+              <div className="mb-2 text-gray-700 font-medium">
+                {`Members & Invites: ${members.length + invites.filter(inv => !inv.claimed).length} of ${userLimit ?? '...'} allowed`}
+              </div>
               <table className="w-full border mb-4">
                 <thead>
                   <tr>
@@ -327,13 +344,15 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+              {/* Show invite error above the form, outside the flex row */}
+              {inviteError && <div className="text-red-600 mb-2">{inviteError}</div>}
               <form
                 className="mt-4 flex gap-2 items-center"
                 onSubmit={async (e) => {
                   e.preventDefault();
                   setInviteLoading(true);
                   setInviteSuccess("");
-                  setError("");
+                  setInviteError("");
                   try {
                     const res = await fetch("/api/invite-member", {
                       method: "POST",
@@ -342,7 +361,7 @@ export default function AdminDashboard() {
                     });
                     const data = await res.json();
                     if (!res.ok) {
-                      setError(data.error || "Failed to send invite");
+                      setInviteError(data.error || "Failed to send invite");
                     } else {
                       setInviteSuccess("Invite sent!");
                       setInviteEmail("");
@@ -354,14 +373,14 @@ export default function AdminDashboard() {
                       if (!invitesError) setInvites(invitesData || []);
                     }
                   } catch (e) {
-                    setError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
+                    setInviteError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
                   }
                   setInviteLoading(false);
                 }}
               >
                 <input
                   type="email"
-                  className="border rounded px-2 py-1"
+                  className="border rounded px-2 py-1 w-80"
                   placeholder="Invite email"
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}

@@ -28,6 +28,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invite already sent to this email for this band." }, { status: 400 });
   }
 
+  // Fetch band user limit
+  const { data: bandData, error: bandError } = await supabase
+    .from('bands')
+    .select('user_limit')
+    .eq('id', bandId)
+    .maybeSingle();
+  if (bandError || !bandData) {
+    return NextResponse.json({ error: 'Could not fetch band user limit.' }, { status: 400 });
+  }
+  const userLimit = bandData.user_limit;
+
+  // Count active members
+  const { count: memberCount } = await supabase
+    .from('band_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('band_id', bandId);
+
+  // Count pending invites
+  const { count: pendingInviteCount } = await supabase
+    .from('invitations')
+    .select('*', { count: 'exact', head: true })
+    .eq('band_id', bandId)
+    .eq('claimed', false);
+
+  const total = (memberCount || 0) + (pendingInviteCount || 0);
+  if (total >= userLimit) {
+    return NextResponse.json({ error: 'Band is at maximum user capacity for your plan.' }, { status: 400 });
+  }
+
   // Generate a unique token for the invite
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(); // 7 days
