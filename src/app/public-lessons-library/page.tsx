@@ -11,6 +11,7 @@ export default function PublicLessonsLibrary() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [folders, setFolders] = useState<any[]>([]);
   const [publicLessons, setPublicLessons] = useState<any[]>([]);
+  const [privateLessons, setPrivateLessons] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folderLessons, setFolderLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,13 @@ export default function PublicLessonsLibrary() {
         .eq("is_public", true);
       console.log('[DEBUG] public lessons result:', lessonsData, lessonsError);
       setPublicLessons(lessonsData || []);
+      // Fetch private lessons for this band
+      const { data: privateLessonsData, error: privateLessonsError } = await supabase
+        .from("lessons")
+        .select("id, title, is_public")
+        .eq("is_public", false)
+        .eq("band_id", bandId);
+      setPrivateLessons(privateLessonsData || []);
       setLoading(false);
     };
     fetchData();
@@ -196,6 +204,23 @@ export default function PublicLessonsLibrary() {
             </ul>
           </div>
         )}
+        {selectedFolder && (
+          <>
+            <h2 className="text-xl font-semibold mb-2">Lessons in Selected Folder</h2>
+            <ul>
+              {folderLessons.length === 0 && <li className="text-gray-500">No lessons in this folder.</li>}
+              {folderLessons.map(lesson => (
+                <li key={lesson.id} className="mb-2 flex items-center justify-between">
+                  <span>{lesson.title}</span>
+                  <button
+                    className="ml-2 px-2 py-1 bg-red-600 text-white rounded"
+                    onClick={() => handleRemoveLesson(lesson.id)}
+                  >Remove</button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <h2 className="text-xl font-semibold mb-2">All Public Lessons</h2>
         <ul className="mb-8">
           {publicLessons.map(lesson => {
@@ -214,23 +239,30 @@ export default function PublicLessonsLibrary() {
             );
           })}
         </ul>
-        {selectedFolder && (
-          <>
-            <h2 className="text-xl font-semibold mb-2">Lessons in Selected Folder</h2>
-            <ul>
-              {folderLessons.length === 0 && <li className="text-gray-500">No lessons in this folder.</li>}
-              {folderLessons.map(lesson => (
+        <h2 className="text-xl font-semibold mb-2">Private Lessons</h2>
+        <ul className="mb-8">
+          {privateLessons.length > 0 ? (
+            privateLessons.map(lesson => {
+              const inFolder = folderLessons.some(l => l.id === lesson.id);
+              return (
                 <li key={lesson.id} className="mb-2 flex items-center justify-between">
                   <span>{lesson.title}</span>
                   <button
-                    className="ml-2 px-2 py-1 bg-red-600 text-white rounded"
-                    onClick={() => handleRemoveLesson(lesson.id)}
-                  >Remove</button>
+                    className={`ml-2 px-2 py-1 rounded ${inFolder ? 'bg-red-600' : 'bg-green-600'} text-white`}
+                    disabled={!selectedFolder}
+                    onClick={() => inFolder ? handleRemoveLesson(lesson.id) : handleAddLesson(lesson.id)}
+                  >
+                    {inFolder ? 'Remove from Folder' : 'Add to Folder'}
+                  </button>
                 </li>
-              ))}
-            </ul>
-          </>
-        )}
+              );
+            })
+          ) : (
+            <div className="mb-8 text-gray-600">
+              No private lessons yet. <a href="#" className="text-blue-600 underline">Order Private Material</a>
+            </div>
+          )}
+        </ul>
       </div>
     </>
   );
