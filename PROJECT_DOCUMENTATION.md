@@ -106,4 +106,72 @@ EXISTS (
 
 ---
 
+## Kajabi Membership Integration (Planned)
+
+### Overview
+This feature will allow users and admins to activate or revoke a Dojo U membership (Kajabi offer) directly from the band portal. Membership status will be kept in sync with band membership and payment status, using secure webhooks and server-side API calls.
+
+### User & Admin Flows
+- **Standard users** will see a button on their dashboard to activate their Dojo U membership. Clicking it will trigger a secure server-side call to the Kajabi offer activation webhook for their account.
+- **Admins** will have the same button, and may also see controls for managing memberships for their band members.
+- If a user is removed from a band, the system will automatically trigger the Kajabi revoke webhook for that user.
+- If a band's status becomes void (e.g., lapsed payment, subscription termination), the system will revoke all associated Kajabi memberships.
+
+### Technical Implementation
+- **API Endpoints:**
+  - `/api/kajabi/activate`: Activates a Kajabi offer for a user. Validates the user's session and permissions, then calls the Kajabi webhook using a secret API key stored in server environment variables.
+  - `/api/kajabi/revoke`: Revokes a Kajabi offer for a user. Used when a user is removed from a band or when a band's status is voided.
+- **Security:**
+  - All Kajabi API/webhook calls are made server-side. No credentials or secrets are ever exposed to the client.
+  - API keys and webhook URLs are stored in environment variables and never committed to source control.
+  - Optionally, use signed JWTs or HMAC signatures for webhook payloads if supported by Kajabi.
+- **Automation:**
+  - Member removal logic and band status change logic will call the revoke endpoint for affected users.
+  - Payment or subscription status changes (e.g., via Stripe webhook) will trigger revocation for all band members if needed.
+- **Error Handling:**
+  - All API calls log actions and errors for audit and debugging.
+  - Users and admins receive clear feedback if activation or revocation fails.
+
+### Example API Route (Activation)
+```typescript
+// /src/app/api/kajabi/activate/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(req: NextRequest) {
+  const { name, email, external_user_id, offerId, siteId } = await req.json();
+  // Validate user session and permissions here
+
+  // Build Kajabi webhook URL (no API key required)
+  const webhookUrl = `https://checkout.newkajabi.com/webhooks/offers/${offerId}/${siteId}/activate?send_offer_grant_email=true`;
+
+  // Call Kajabi webhook securely (no Authorization header needed)
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name, email, external_user_id }),
+  });
+
+  if (!res.ok) {
+    return NextResponse.json({ error: "Kajabi activation failed" }, { status: 500 });
+  }
+  return NextResponse.json({ success: true });
+}
+```
+
+_Note: Kajabi webhooks do not require an API key or secret in the headers. Only the correct URL and payload are needed._
+
+### Best Practices
+- Never expose Kajabi API keys or webhook secrets to the client or in public repos.
+- Use environment variables for all sensitive config.
+- Log all membership changes for audit and support.
+
+### Next Steps
+- Implement the user-facing button and activation API route.
+- Integrate revocation logic into member removal and band status change flows.
+- Test end-to-end with real Kajabi webhooks and offers.
+
+---
+
 _Last updated: June 25, 2025_
