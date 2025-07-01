@@ -174,4 +174,117 @@ _Note: Kajabi webhooks do not require an API key or secret in the headers. Only 
 
 ---
 
+## Stripe Subscription Integration (Planned)
+
+### Overview
+This integration will enable bands to subscribe to the portal using Stripe for recurring billing (monthly or yearly). Stripe Checkout and Customer Portal will be used for all payment and billing management, ensuring PCI compliance and a seamless user experience. Subscription status will control access to band features and automate Kajabi membership revocation if payment lapses.
+
+### Key Features
+- Secure, recurring billing via Stripe (monthly or annual plans)
+- Stripe Checkout for new subscriptions (off-site, branded, supports Apple Pay, Google Pay, ACH, etc.)
+- Stripe Customer Portal for managing billing, updating payment methods, viewing invoices, and cancelling
+- Webhook-driven automation for access control and Kajabi revocation
+- Renewal reminders and in-app notifications before billing
+- Admin dashboard shows current subscription status and renewal date
+
+### Data Model Changes
+- Add to `bands` table:
+  - `stripe_customer_id`
+  - `stripe_subscription_id`
+  - `subscription_status` (e.g., active, lapsed, cancelled)
+  - `current_period_end` (timestamp for next renewal)
+
+### User/Admin Flows
+1. **Start Subscription**
+   - Admin clicks “Start Subscription” in the dashboard
+   - App calls `/api/stripe/create-checkout-session` and redirects to Stripe Checkout
+   - Admin completes payment; Stripe redirects back to portal
+   - Webhook updates band status to `active`, stores Stripe IDs, and sets `current_period_end`
+
+2. **Manage Subscription**
+   - Admin clicks “Manage Billing”
+   - App calls `/api/stripe/create-customer-portal-session` and redirects to Stripe Customer Portal
+   - Admin can update payment, view invoices, cancel, etc.
+
+3. **Renewal & Reminders**
+   - Stripe sends `invoice.upcoming` webhook (default: 7 days before renewal)
+   - App sends reminder email (via Resend) and/or in-app notification
+   - Optionally, send additional reminders (e.g., 1 day before)
+
+4. **Payment Failure or Cancellation**
+   - Stripe sends `invoice.payment_failed` or `customer.subscription.deleted` webhook
+   - App updates band status to `lapsed` or `void`, restricts access, and triggers Kajabi revocation for all members
+   - Admin receives email and in-app warning
+
+5. **Reactivation**
+   - Admin can restart subscription via dashboard (redirect to Stripe Checkout or Portal)
+   - On payment, access is restored and Kajabi can be reactivated
+
+### API Endpoints
+- `/api/stripe/create-checkout-session` (POST):
+  - Authenticates admin, creates Stripe Checkout session, returns URL
+- `/api/stripe/create-customer-portal-session` (POST):
+  - Authenticates admin, creates Stripe Customer Portal session, returns URL
+- `/api/stripe/webhook` (POST):
+  - Handles all relevant Stripe events (checkout completed, invoice upcoming, payment failed, subscription deleted/updated)
+  - Updates band status, sends reminders, triggers Kajabi revocation as needed
+
+### Security
+- All Stripe secret keys and webhook signing secrets are stored in environment variables
+- Only authenticated admins can initiate billing actions
+- No payment data is ever handled or stored by your app
+
+### Reminder System
+- Listen for `invoice.upcoming` webhook
+- Send branded reminder emails via Resend (7 days and/or 1 day before renewal)
+- Show in-app notifications in admin dashboard
+- Store `current_period_end` in database for custom logic
+
+### Payment Methods Supported
+- Credit/debit cards
+- Apple Pay, Google Pay
+- ACH bank transfer (if enabled in Stripe)
+- Link by Stripe
+- Other local payment methods (depending on Stripe settings and user location)
+
+### Best Practices
+- Use Stripe’s hosted pages for all billing (no custom payment forms)
+- Keep all Stripe secrets server-side
+- Log all subscription changes for audit/support
+- Test thoroughly in Stripe test mode before going live
+
+### Stripe Sandbox & Go-Live Protocol
+
+#### Stripe Sandbox (Test Mode)
+- Use Stripe “test” secret and publishable keys in `.env.local`.
+- All API calls, Checkout sessions, and Customer Portal links operate in test mode.
+- Use Stripe’s test cards (e.g., 4242 4242 4242 4242 for Visa) and test bank details for ACH.
+- Trigger webhooks using the Stripe CLI or Dashboard, and test all success/failure scenarios.
+- Check the Stripe Dashboard (toggle “Viewing test data”) to see test customers, payments, and subscriptions.
+- Test all flows: new sign-up, payment method updates, cancellations, renewals, payment failures, webhook handling, reminder emails, access control, and Kajabi revocation logic.
+
+#### Going Live (Production Launch)
+1. Replace test keys with your Stripe “live” secret and publishable keys in `.env.local`.
+2. Update webhook endpoints in the Stripe Dashboard to point to your production URL.
+3. Double-check that your domain is correct in Stripe settings (for redirects).
+4. Ensure all environment variables (Stripe, Resend, etc.) are set for production.
+5. Test a real payment with a real card (use a small amount).
+6. Monitor Stripe Dashboard for real activity and errors.
+7. Announce launch to users!
+
+**Important:**
+- Never mix test and live keys.
+- Webhooks must be set up separately for test and live modes.
+- All test data stays in test mode; live mode starts with a clean slate.
+
+| Step                | Test Mode (Sandbox)         | Live Mode (Production)      |
+|---------------------|----------------------------|-----------------------------|
+| API Keys            | Test keys                   | Live keys                   |
+| Payments            | Test cards/banks            | Real cards/banks            |
+| Webhooks            | Test endpoints              | Production endpoints        |
+| Dashboard           | “Viewing test data”         | “Viewing live data”         |
+| Data                | Not visible to real users   | Real users/data             |
+
+---
+
 _Last updated: June 25, 2025_
