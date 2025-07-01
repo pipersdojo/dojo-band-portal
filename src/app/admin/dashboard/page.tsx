@@ -1,5 +1,6 @@
 "use client";
 import UserLogger from "../../components/UserLogger";
+import { useSearchParams } from 'next/navigation';
 
 // Admin Dashboard for managing band members and invites
 import { useEffect, useState } from 'react';
@@ -39,6 +40,7 @@ export default function AdminDashboard() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,8 +84,14 @@ export default function AdminDashboard() {
           router.push('/');
           return;
         }
-        // Auto-select first band if only one, or keep previous selection
-        if (!selectedBand && bandsList.length === 1) {
+        // Check for band param in URL
+        const bandParam = searchParams.get('band');
+        if (bandParam) {
+          const band = bandsList.find((b: any) => b.id === bandParam);
+          if (band) {
+            setSelectedBand(band);
+          }
+        } else if (!selectedBand && bandsList.length === 1) {
           setSelectedBand(bandsList[0]);
         }
       } catch (e) {
@@ -94,7 +102,7 @@ export default function AdminDashboard() {
     };
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [router, searchParams]);
 
   useEffect(() => {
     const fetchBandData = async () => {
@@ -137,6 +145,32 @@ export default function AdminDashboard() {
     fetchBandData();
   }, [selectedBand]);
 
+  // Reset selectedBand to null immediately when band param changes
+  useEffect(() => {
+    const bandParam = searchParams.get('band');
+    if (bandParam && selectedBand && selectedBand.id !== bandParam) {
+      setSelectedBand(null);
+    }
+  }, [searchParams, selectedBand]);
+
+  // Sync selectedBand with band param and bands list
+  useEffect(() => {
+    const bandParam = searchParams.get('band');
+    if (bandParam && bands.length > 0) {
+      const band = bands.find((b) => b.id === bandParam);
+      if (band && (!selectedBand || selectedBand.id !== band.id)) {
+        setSelectedBand(band);
+      }
+    }
+  }, [searchParams, bands]);
+
+  // Improved loading logic to prevent blank screen flash
+  const bandParam = searchParams.get('band');
+  const bandsLoaded = bands.length > 0 || (!loading && bands.length === 0);
+  if (!bandsLoaded || (bandParam && !selectedBand && bands.length > 0)) {
+    return <div>Loading...</div>;
+  }
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
 
@@ -148,7 +182,7 @@ export default function AdminDashboard() {
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-2">My Bands</h2>
           <div className="mb-4">
-            {bands.length > 1 && (
+            {bands.length > 1 && !selectedBand && (
               <select
                 value={selectedBand?.id || ''}
                 onChange={e => {
@@ -163,7 +197,7 @@ export default function AdminDashboard() {
                 ))}
               </select>
             )}
-            {bands.length === 1 && <span>{bands[0].name}</span>}
+            {selectedBand && <span>{selectedBand.name}</span>}
             {bands.length === 0 && <span>No bands found.</span>}
           </div>
         </section>
@@ -237,8 +271,57 @@ export default function AdminDashboard() {
                       <td>{inv.expires_at ? new Date(inv.expires_at).toLocaleString() : 'N/A'}</td>
                       <td>Pending</td>
                       <td>
-                        {/* TODO: Add actions (revoke) */}
-                        <button className="text-red-600 hover:underline" disabled>Revoke</button>
+                        <button
+                          className="text-red-600 hover:underline mr-2"
+                          onClick={async () => {
+                            if (!window.confirm(`Revoke invite for ${inv.email}?`)) return;
+                            setLoading(true);
+                            setError("");
+                            try {
+                              const res = await fetch("/api/revoke-invite", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ inviteId: inv.id }),
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setError(data.error || "Failed to revoke invite");
+                              } else {
+                                setInvites(invites.filter(i => i.id !== inv.id));
+                              }
+                            } catch (e) {
+                              setError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
+                            }
+                            setLoading(false);
+                          }}
+                        >
+                          Revoke
+                        </button>
+                        <button
+                          className="text-blue-600 hover:underline"
+                          onClick={async () => {
+                            setLoading(true);
+                            setError("");
+                            try {
+                              const res = await fetch("/api/resend-invite", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ inviteId: inv.id }),
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setError(data.error || "Failed to resend invite");
+                              } else {
+                                setInviteSuccess("Invite resent!");
+                              }
+                            } catch (e) {
+                              setError(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`);
+                            }
+                            setLoading(false);
+                          }}
+                        >
+                          Resend
+                        </button>
                       </td>
                     </tr>
                   ))}

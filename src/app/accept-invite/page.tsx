@@ -85,7 +85,9 @@ export default function AcceptInvitePage() {
       return;
     }
     setStatus("Invite accepted! You have joined the band.");
-    setTimeout(() => router.push("/"), 3000);
+    setTimeout(() => {
+      window.location.href = "/"; // Force full reload to home
+    }, 1500);
   }
 
   return (
