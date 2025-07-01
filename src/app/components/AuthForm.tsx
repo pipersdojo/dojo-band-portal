@@ -3,8 +3,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-export default function AuthForm() {
-  const [email, setEmail] = useState("");
+export default function AuthForm({ forceEmail }: { forceEmail?: string } = {}) {
+  const [email, setEmail] = useState(forceEmail || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +53,10 @@ export default function AuthForm() {
         <input
           type="email"
           placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
+          value={forceEmail ?? email}
+          onChange={e => !forceEmail && setEmail(e.target.value)}
           className="block w-full mb-2 p-2 border rounded"
+          disabled={!!forceEmail}
         />
         <input
           type="password"
@@ -65,14 +66,16 @@ export default function AuthForm() {
           className="block w-full mb-2 p-2 border rounded"
         />
         <div className="flex gap-2">
-          <button
-            onClick={handleSignIn}
-            className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-            disabled={loading}
-            type="button"
-          >
-            Sign In
-          </button>
+          {!forceEmail && (
+            <button
+              onClick={handleSignIn}
+              className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              disabled={loading}
+              type="button"
+            >
+              Sign In
+            </button>
+          )}
           <button
             onClick={handleSignUp}
             className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"

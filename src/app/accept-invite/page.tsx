@@ -13,6 +13,9 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     async function validateInvite() {
@@ -45,33 +48,54 @@ export default function AcceptInvitePage() {
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
   }, [token]);
 
+  // Listen for auth state changes to catch session after email verification
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        const { data } = await supabase.auth.getUser();
+        setUser(data?.user || null);
+      }
+    });
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Auto-claim invite if user is authenticated and matches invite email
+  useEffect(() => {
+    if (invite && user && user.email === invite.email && !error && status === "") {
+      setStatus("Accepting invite...");
+      claimInvite();
+    }
+  }, [invite, user]);
+
   async function claimInvite() {
     if (!user || !invite) return;
     if (user.email !== invite.email) {
       setError("You must log in with the invited email address.");
       return;
     }
-    console.log("[Invite] Attempting to update user:", {
+    console.log("[Invite] Attempting to add band member:", {
       userId: user.id,
       band_id: invite.band_id,
       role: invite.role,
     });
-    // Update user profile with band_id and role
-    const { data: updateData, error: dbError } = await supabase.from("users")
-      .update({
+    // Insert into band_members
+    const { data: insertData, error: dbError } = await supabase.from("band_members")
+      .insert({
+        user_id: user.id,
         band_id: invite.band_id,
         role: invite.role,
       })
-      .eq("id", user.id)
       .select();
-    console.log("[Invite] Update response:", { updateData, dbError });
+    console.log("[Invite] Insert response:", { insertData, dbError });
     if (dbError) {
-      console.error("[Invite] Error updating user:", dbError);
+      console.error("[Invite] Error adding band member:", dbError);
       setError(dbError.message);
       return;
     }
-    if (!updateData || updateData.length === 0) {
-      setError("No user row was updated. Check if the user exists and RLS allows the update.");
+    if (!insertData || insertData.length === 0) {
+      setError("No band member row was inserted. Check if the user exists and RLS allows the insert.");
       return;
     }
     // Mark invite as used
@@ -85,9 +109,29 @@ export default function AcceptInvitePage() {
       return;
     }
     setStatus("Invite accepted! You have joined the band.");
-    setTimeout(() => {
-      window.location.href = "/"; // Force full reload to home
+    setTimeout(async () => {
+      await supabase.auth.refreshSession();
+      window.location.reload(); // Force full reload to ensure new membership is reflected
     }, 1500);
+  }
+
+  async function handlePasswordSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: invite.email,
+      password,
+    });
+    if (error) {
+      setAuthError(error.message);
+    } else {
+      setAuthError(null);
+      // Refresh user state
+      const { data } = await supabase.auth.getUser();
+      setUser(data?.user || null);
+    }
+    setAuthLoading(false);
   }
 
   return (
@@ -105,21 +149,19 @@ export default function AcceptInvitePage() {
             </p>
             {!user ? (
               <>
-                <p>
-                  Please log in or sign up with this email to accept the
-                  invitation.
+                <p className="mt-4 text-yellow-700">
+                  No account found for <b>{invite.email}</b>. Please sign up to accept this invitation.
                 </p>
-                <AuthForm />
+                <AuthForm forceEmail={invite.email} />
               </>
+            ) : user.email === invite.email ? (
+              status === "Accepting invite..." ? (
+                <p className="mt-4 text-blue-600">Accepting invite...</p>
+              ) : null
             ) : (
-              <>
-                <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
-                  onClick={claimInvite}
-                >
-                  Accept Invite
-                </button>
-              </>
+              <p className="mt-4 text-red-600">
+                You are logged in as <b>{user.email}</b>. Please log out and log in with <b>{invite.email}</b> to accept this invitation.
+              </p>
             )}
           </div>
         )}

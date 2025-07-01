@@ -129,7 +129,7 @@ export default function Home() {
                         role: invite.role,
                       });
                       await supabase.from("invitations").update({ claimed: true, used_at: new Date().toISOString() }).eq("id", invite.id);
-                      setInvites(invites.filter((i) => i.id !== invite.id));
+                      window.location.reload(); // Force full reload to update bands and invites
                     }}
                   >
                     Accept
