@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
+import { sendInviteEmail } from './sendInviteEmail';
+import { getBandName } from './getBandName';
 
 export async function POST(req: NextRequest) {
   const { email, bandId } = await req.json();
@@ -33,19 +35,31 @@ export async function POST(req: NextRequest) {
   // Insert invite
   const { error: insertError } = await supabase
     .from("invitations")
-    .insert({
+    .insert([{
       email,
       band_id: bandId,
       role: "member",
       token,
       expires_at: expiresAt,
       claimed: false
-    });
+    }]);
   if (insertError) {
     return NextResponse.json({ error: `DB insert error: ${insertError.message}` }, { status: 400 });
   }
 
-  // (Optional) Send email here using your email provider
+  // Fetch band name for email
+  const bandName = await getBandName(bandId);
+  const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/accept-invite?token=${token}`;
+
+  try {
+    await sendInviteEmail({
+      to: email,
+      bandName: bandName || 'a band',
+      inviteLink
+    });
+  } catch (err) {
+    return NextResponse.json({ error: 'Invite created, but failed to send email.' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
