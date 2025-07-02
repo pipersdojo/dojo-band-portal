@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-06-30.basil',
+  apiVersion: '2023-10-16', // Use a stable, official Stripe API version
 });
 
 export async function POST(req: NextRequest) {
@@ -33,12 +33,20 @@ export async function POST(req: NextRequest) {
       if (bandId && customerId && subscriptionId) {
         // Fetch subscription details for status and period end
         const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
+        // Ensure bandId is set on the subscription metadata for future events
+        if (!subscription.metadata || subscription.metadata.bandId !== bandId) {
+          await stripe.subscriptions.update(subscriptionId, {
+            metadata: { ...subscription.metadata, bandId },
+          });
+          console.log('[Stripe webhook] Set bandId in subscription metadata', { subscriptionId, bandId });
+        }
+        console.log('[Stripe webhook] Full subscription object:', subscription);
         const status = subscription.status;
         const currentPeriodEnd = subscription.current_period_end
           ? new Date(subscription.current_period_end * 1000).toISOString()
           : null;
-        console.log('[Stripe webhook] Updating band', { bandId, status, currentPeriodEnd });
-        const { error } = await supabaseAdmin
+        console.log('[Stripe webhook] Updating band', { eventType: 'checkout.session.completed', bandId, status, currentPeriodEnd });
+        const { data, error } = await supabaseAdmin
           .from('bands')
           .update({
             stripe_customer_id: customerId,
@@ -47,11 +55,47 @@ export async function POST(req: NextRequest) {
             current_period_end: currentPeriodEnd,
           })
           .eq('id', bandId);
+        console.log('[Stripe webhook] Supabase update result', { eventType: 'checkout.session.completed', bandId, currentPeriodEnd, data, error });
         if (error) {
           console.error('[Stripe webhook] Supabase update error', error);
         }
       } else {
         console.warn('[Stripe webhook] Missing bandId, customerId, or subscriptionId', { bandId, customerId, subscriptionId });
+      }
+      break;
+    }
+    case 'customer.subscription.updated': {
+      const subscription = event.data.object as any;
+      // Log the full raw subscription object for debugging
+      console.log('[Stripe webhook] Raw subscription event:', JSON.stringify(subscription, null, 2));
+      const bandId = subscription.metadata?.bandId;
+      const customerId = subscription.customer;
+      const subscriptionId = subscription.id;
+      const status = subscription.status;
+      const currentPeriodEnd = subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null;
+      console.log('[Stripe webhook] customer.subscription.updated', { bandId, customerId, subscriptionId, status, currentPeriodEnd });
+      if (bandId) {
+        // Only include current_period_end if not null
+        const updateObj: any = {
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          subscription_status: status,
+        };
+        if (currentPeriodEnd) {
+          updateObj.current_period_end = currentPeriodEnd;
+        }
+        const { data, error } = await supabaseAdmin
+          .from('bands')
+          .update(updateObj)
+          .eq('id', bandId);
+        console.log('[Stripe webhook] Supabase update result', { eventType: 'customer.subscription.updated', bandId, currentPeriodEnd, data, error });
+        if (error) {
+          console.error('[Stripe webhook] Supabase update error (subscription.updated)', error);
+        }
+      } else {
+        console.warn('[Stripe webhook] No bandId in subscription metadata for subscription.updated', { subscriptionId });
       }
       break;
     }
@@ -61,9 +105,33 @@ export async function POST(req: NextRequest) {
     case 'invoice.payment_failed':
       // Handle failed payment
       break;
-    case 'customer.subscription.deleted':
-      // Handle subscription cancellation
+    case 'customer.subscription.deleted': {
+      const subscription = event.data.object as any;
+      const bandId = subscription.metadata?.bandId;
+      const customerId = subscription.customer;
+      const subscriptionId = subscription.id;
+      const status = 'cancelled';
+      const currentPeriodEnd = null;
+      console.log('[Stripe webhook] customer.subscription.deleted', { bandId, customerId, subscriptionId });
+      if (bandId) {
+        const { data, error } = await supabaseAdmin
+          .from('bands')
+          .update({
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            subscription_status: status,
+            current_period_end: currentPeriodEnd,
+          })
+          .eq('id', bandId);
+        console.log('[Stripe webhook] Supabase update result', { eventType: 'customer.subscription.deleted', bandId, currentPeriodEnd, data, error });
+        if (error) {
+          console.error('[Stripe webhook] Supabase update error (subscription.deleted)', error);
+        }
+      } else {
+        console.warn('[Stripe webhook] No bandId in subscription metadata for subscription.deleted', { subscriptionId });
+      }
       break;
+    }
     // Add more cases as needed
     default:
       break;
