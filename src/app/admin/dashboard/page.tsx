@@ -219,6 +219,14 @@ export default function AdminDashboard() {
         </section>
         {selectedBand && (
           <>
+            <div className="mb-4">
+              <a
+                href={`/band/${selectedBand.id}`}
+                className="text-blue-600 underline"
+              >
+                View Band Page
+              </a>
+            </div>
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-2">Band Members</h2>
               {/* Restriction banner for this band */}

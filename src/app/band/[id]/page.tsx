@@ -138,6 +138,13 @@ export default function BandViewPage() {
     <BandAccessGuard>
       <UserLogger />
       <div className="max-w-2xl mx-auto py-16">
+        {/* Navigation links */}
+        <div className="mb-4 flex gap-4 items-center">
+          <a href="/" className="text-blue-600 underline">&lt;-- Return</a>
+          {userRole === 'admin' && (
+            <a href={`/admin/dashboard?band=${band.id}`} className="text-blue-600 underline">Manage Band</a>
+          )}
+        </div>
         <h1 className="text-3xl font-bold mb-4">{band.name}</h1>
         <p className="mb-4 text-gray-600">Band ID: {band.id}</p>
         {/* Only show Members section for admins */}
