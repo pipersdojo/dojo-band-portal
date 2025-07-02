@@ -331,6 +331,23 @@ export const STRIPE_PRODUCT_TIERS = {
 
 ---
 
+### Access Restriction Logic (Subscription & Member Limits)
+
+- Bands retain full access to the portal until the end of the current billing period (`current_period_end`), even if the subscription is cancelled or payment fails.
+- After `current_period_end` passes and the subscription is not active, access is restricted for all non-admin members. Admins retain access to manage billing, members, and resolve issues.
+- If a band exceeds its allowed member limit (e.g., after a tier downgrade), non-admin members are blocked from accessing content until the band is within the allowed limit. Admins can still log in and see a prominent alert/banner instructing them to remove members.
+- No members are automatically removed; the admin must manually reduce the member count.
+- Once the member count is within the limit and/or the subscription is active (or within the grace period), normal access is restored for all.
+- This logic should be enforced in a top-level layout, provider, or middleware using a central `restrictAccess` function/hook. This function should:
+  - Check if the current user is an admin or member.
+  - Check if the band is over the member limit.
+  - Check if the current date is past `current_period_end` and the subscription is not active.
+  - Block non-admins from accessing content if either condition is true, and show a clear message.
+  - Allow admins to access management features, but always show a warning/alert if action is needed.
+- This ensures a consistent, user-friendly, and maintainable access control experience across the app.
+
+---
+
 ### Edge Case: Over-Limit Members on Tier Downgrade
 
 - If a band downgrades to a tier with a lower member limit than their current member count, the following should occur:

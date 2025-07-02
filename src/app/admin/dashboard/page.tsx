@@ -3,6 +3,7 @@ import UserLogger from "../../components/UserLogger";
 import { useSearchParams } from 'next/navigation';
 import { TierPricingTable } from "@/components/TierPricingTable";
 import { STRIPE_PRODUCT_TIERS } from "@/lib/stripeTiers";
+import { BandRestrictionBanner } from './BandRestrictionBanner';
 
 // Admin Dashboard for managing band members and invites
 import { useEffect, useState } from 'react';
@@ -220,6 +221,13 @@ export default function AdminDashboard() {
           <>
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-2">Band Members</h2>
+              {/* Restriction banner for this band */}
+              <BandRestrictionBanner
+                bandId={selectedBand.id}
+                userLimit={userLimit}
+                members={members}
+                invites={invites}
+              />
               {/* Members/Invites usage summary */}
               <div className="mb-2 text-gray-700 font-medium">
                 {`Members & Invites: ${members.length + invites.filter(inv => !inv.claimed).length} of ${userLimit ?? '...'} allowed`}

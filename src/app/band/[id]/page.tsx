@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import FolderList from "@/app/components/FolderList";
 import LessonList from "@/app/components/LessonList";
 import UserLogger from "../../components/UserLogger";
+import { BandAccessGuard } from './BandAccessGuard';
 
 export default function BandViewPage() {
   const params = useParams();
@@ -134,19 +135,24 @@ export default function BandViewPage() {
   if (!band) return <div className="py-16 text-center">Band not found.</div>;
 
   return (
-    <>
+    <BandAccessGuard>
       <UserLogger />
       <div className="max-w-2xl mx-auto py-16">
         <h1 className="text-3xl font-bold mb-4">{band.name}</h1>
         <p className="mb-4 text-gray-600">Band ID: {band.id}</p>
-        <h2 className="text-xl font-semibold mb-2">Members</h2>
-        <ul className="mb-8">
-          {members.map((m, i) => (
-            <li key={i} className="mb-1">
-              {m.user?.full_name || m.user?.email} <span className="text-xs text-gray-500">({m.role})</span>
-            </li>
-          ))}
-        </ul>
+        {/* Only show Members section for admins */}
+        {userRole === 'admin' && (
+          <>
+            <h2 className="text-xl font-semibold mb-2">Members</h2>
+            <ul className="mb-8">
+              {members.map((m, i) => (
+                <li key={i} className="mb-1">
+                  {m.user?.full_name || m.user?.email} <span className="text-xs text-gray-500">({m.role})</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <div className="bg-gray-50 p-4 rounded shadow mb-6">
           <h2 className="text-lg font-semibold mb-2">Folders</h2>
           <ul>
@@ -180,6 +186,6 @@ export default function BandViewPage() {
           )}
         </div>
       </div>
-    </>
+    </BandAccessGuard>
   );
 }

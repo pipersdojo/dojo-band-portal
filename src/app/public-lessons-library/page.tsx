@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import UserLogger from "../components/UserLogger";
+import { PublicLessonsAccessGuard } from './PublicLessonsAccessGuard';
 
 export default function PublicLessonsLibrary() {
   const router = useRouter();
@@ -170,9 +171,12 @@ export default function PublicLessonsLibrary() {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
+  if (!bandId) {
+    return <div className="py-16 text-center text-red-600">No band specified.</div>;
+  }
 
   return (
-    <>
+    <PublicLessonsAccessGuard bandId={bandId}>
       <UserLogger />
       <div className="max-w-2xl mx-auto py-8">
         <a href={`/band/${bandId}`} className="text-blue-600 underline mb-4 inline-block">← Back to Band Page</a>
@@ -264,6 +268,6 @@ export default function PublicLessonsLibrary() {
           )}
         </ul>
       </div>
-    </>
+    </PublicLessonsAccessGuard>
   );
 }
