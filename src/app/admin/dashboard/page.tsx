@@ -199,7 +199,7 @@ export default function AdminDashboard() {
               <select
                 value={selectedBand?.id || ''}
                 onChange={e => {
-                  const band = bands.find(b => b.id === e.target.value);
+                  const band = bands.find((b: Band) => b.id === e.target.value);
                   setSelectedBand(band || null);
                 }}
                 className="border rounded px-2 py-1"
@@ -397,9 +397,125 @@ export default function AdminDashboard() {
                 {inviteSuccess && <span className="text-green-600 ml-2">{inviteSuccess}</span>}
               </form>
             </section>
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold mb-2">Billing</h2>
+              {/* Subscription status and actions */}
+              <BillingSection selectedBand={selectedBand} />
+            </section>
           </>
         )}
       </div>
     </>
+  );
+}
+
+// BillingSection component
+function BillingSection({ selectedBand }: { selectedBand: Band }) {
+  const [subStatus, setSubStatus] = useState<string | null>(null);
+  const [renewal, setRenewal] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch band subscription info from Supabase
+    const fetchSub = async () => {
+      setLoading(true);
+      setError(null);
+      // Fetch band row
+      const { data: band, error: bandError } = await supabase
+        .from('bands')
+        .select('subscription_status, current_period_end, stripe_customer_id')
+        .eq('id', selectedBand.id)
+        .maybeSingle();
+      if (bandError) setError(bandError.message);
+      setSubStatus(band?.subscription_status || null);
+      setRenewal(band?.current_period_end ? new Date(band.current_period_end).toLocaleString() : null);
+      setCustomerId(band?.stripe_customer_id || null);
+      // Fetch current user email
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserEmail(user?.email || null);
+      setLoading(false);
+    };
+    fetchSub();
+  }, [selectedBand]);
+
+  const handleStartSubscription = async () => {
+    setLoading(true);
+    setError(null);
+    // TODO: Replace with your actual priceId
+    const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '';
+    if (!priceId || !userEmail) {
+      setError('Missing priceId or user email');
+      setLoading(false);
+      return;
+    }
+    const res = await fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId, bandId: selectedBand.id, userEmail }),
+    });
+    const data = await res.json();
+    setLoading(false);
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      setError(data.error || 'Failed to start subscription');
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setLoading(true);
+    setError(null);
+    if (!customerId) {
+      setError('No Stripe customer ID found for this band.');
+      setLoading(false);
+      return;
+    }
+    const res = await fetch('/api/stripe/create-customer-portal-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId }),
+    });
+    const data = await res.json();
+    setLoading(false);
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      setError(data.error || 'Failed to open billing portal');
+    }
+  };
+
+  return (
+    <div className="border rounded p-4 bg-gray-50">
+      {loading && <div>Loading billing info...</div>}
+      {error && <div className="text-red-600 mb-2">{error}</div>}
+      <div className="mb-2">
+        <span className="font-medium">Subscription Status:</span> {subStatus || 'Not Subscribed'}
+      </div>
+      {renewal && (
+        <div className="mb-2">
+          <span className="font-medium">Renews:</span> {renewal}
+        </div>
+      )}
+      {(!subStatus || subStatus === 'lapsed' || subStatus === 'cancelled') ? (
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={handleStartSubscription}
+          disabled={loading}
+        >
+          Start Subscription
+        </button>
+      ) : (
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={handleManageBilling}
+          disabled={loading}
+        >
+          Manage Billing
+        </button>
+      )}
+    </div>
   );
 }
