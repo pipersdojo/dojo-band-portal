@@ -25,6 +25,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Fira+Sans:wght@700&display=swap" rel="stylesheet" />
+        <link rel="icon" href="/dojoFavicon.png" type="image/png" />
+        <style>{`
+          body {
+            font-family: 'Open Sans', Arial, sans-serif;
+            font-weight: 400;
+            color: #595959;
+            line-height: 1.6;
+          }
+          h1, h2, h3, h4, h5, h6 {
+            font-family: 'Fira Sans', Arial, sans-serif;
+            font-weight: bold;
+            color: #161E2A;
+            line-height: 1.2;
+          }
+          .secondary-text {
+            color: #FF0000;
+          }
+          ::placeholder {
+            color: #CCCCCC;
+            opacity: 1;
+          }
+        `}</style>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

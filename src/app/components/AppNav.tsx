@@ -29,7 +29,8 @@ export default function AppNav() {
 
   return (
     <nav className="bg-gray-100 py-4 px-6 flex gap-6 mb-8 items-center">
-      <a href="/" className="font-semibold">
+      <a href="/" className="flex items-center gap-2 font-semibold">
+        <img src="/dojoLogo.png" alt="Dojo Logo" className="h-8 w-auto" />
         Home
       </a>
       <div className="flex-1" />
