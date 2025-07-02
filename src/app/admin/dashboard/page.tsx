@@ -1,6 +1,8 @@
 "use client";
 import UserLogger from "../../components/UserLogger";
 import { useSearchParams } from 'next/navigation';
+import { TierPricingTable } from "@/components/TierPricingTable";
+import { STRIPE_PRODUCT_TIERS } from "@/lib/stripeTiers";
 
 // Admin Dashboard for managing band members and invites
 import { useEffect, useState } from 'react';
@@ -414,9 +416,16 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
   const [subStatus, setSubStatus] = useState<string | null>(null);
   const [renewal, setRenewal] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [stripeProductId, setStripeProductId] = useState<string | null>(null);
+  const [userLimit, setUserLimit] = useState<number | null>(null);
+  const [tierInfo, setTierInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
+
+  // Get selected tier name for button label
+  const selectedTier = selectedPriceId ? Object.values(STRIPE_PRODUCT_TIERS).find(t => t.priceId === selectedPriceId) : null;
 
   useEffect(() => {
     // Fetch band subscription info from Supabase
@@ -426,16 +435,24 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
       // Fetch band row
       const { data: band, error: bandError } = await supabase
         .from('bands')
-        .select('subscription_status, current_period_end, stripe_customer_id')
+        .select('subscription_status, current_period_end, stripe_customer_id, stripe_product_id, user_limit')
         .eq('id', selectedBand.id)
         .maybeSingle();
       if (bandError) setError(bandError.message);
       setSubStatus(band?.subscription_status || null);
       setRenewal(band?.current_period_end ? new Date(band.current_period_end).toLocaleString() : null);
       setCustomerId(band?.stripe_customer_id || null);
+      setStripeProductId(band?.stripe_product_id || null);
+      setUserLimit(band?.user_limit ?? null);
       // Fetch current user email
       const { data: { user } } = await supabase.auth.getUser();
       setUserEmail(user?.email || null);
+      // Get tier info from STRIPE_PRODUCT_TIERS
+      if (band?.stripe_product_id && STRIPE_PRODUCT_TIERS[band.stripe_product_id]) {
+        setTierInfo(STRIPE_PRODUCT_TIERS[band.stripe_product_id]);
+      } else {
+        setTierInfo(null);
+      }
       setLoading(false);
     };
     fetchSub();
@@ -444,17 +461,15 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
   const handleStartSubscription = async () => {
     setLoading(true);
     setError(null);
-    // TODO: Replace with your actual priceId
-    const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '';
-    if (!priceId || !userEmail) {
-      setError('Missing priceId or user email');
+    if (!selectedPriceId || !userEmail) {
+      setError('Please select a tier.');
       setLoading(false);
       return;
     }
     const res = await fetch('/api/stripe/create-checkout-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceId, bandId: selectedBand.id, userEmail }),
+      body: JSON.stringify({ priceId: selectedPriceId, bandId: selectedBand.id, userEmail }),
     });
     const data = await res.json();
     setLoading(false);
@@ -493,6 +508,18 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
       {error && <div className="text-red-600 mb-2">{error}</div>}
       <div className="mb-2">
         <span className="font-medium">Subscription Status:</span> {subStatus || 'Not Subscribed'}
+        {tierInfo && (
+          <>
+            <div className="text-sm text-gray-700 mt-1">
+              <b>Tier:</b> {tierInfo.name}<br />
+              <b>Yearly Price:</b> ${tierInfo.yearlyPrice}<br />
+              <b>Member Limit:</b> {tierInfo.memberLimit}
+            </div>
+          </>
+        )}
+        {userLimit !== null && (
+          <div className="text-sm text-gray-700">(Current user limit: {userLimit})</div>
+        )}
       </div>
       {renewal && (
         <div className="mb-2">
@@ -500,13 +527,22 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
         </div>
       )}
       {(!subStatus || subStatus === 'lapsed' || subStatus === 'cancelled') ? (
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-          onClick={handleStartSubscription}
-          disabled={loading}
-        >
-          Start Subscription
-        </button>
+        <>
+          <TierPricingTable
+            onSelect={(priceId) => setSelectedPriceId(priceId)}
+            selectedPriceId={selectedPriceId || undefined}
+            disabled={loading}
+          />
+          {selectedTier && (
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded mt-2"
+              onClick={handleStartSubscription}
+              disabled={loading}
+            >
+              {`Start Subscription: ${selectedTier.name}`}
+            </button>
+          )}
+        </>
       ) : (
         <button
           className="bg-blue-600 text-white px-4 py-2 rounded"

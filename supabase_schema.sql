@@ -6,7 +6,8 @@ create table bands (
   subscription_status text not null default 'inactive',
   created_at timestamptz default now(),
   code text unique,
-  lesson_limit integer not null default 20
+  lesson_limit integer not null default 20,
+  user_limit integer -- Stripe: max members allowed for current tier
 );
 
 create table users (

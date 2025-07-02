@@ -331,4 +331,16 @@ export const STRIPE_PRODUCT_TIERS = {
 
 ---
 
+### Edge Case: Over-Limit Members on Tier Downgrade
+
+- If a band downgrades to a tier with a lower member limit than their current member count, the following should occur:
+  - Non-admin members are blocked from logging in or accessing band content until the band is within the allowed member limit.
+  - Admins are allowed to log in, but see a prominent alert/banner instructing them to remove members to restore access for others.
+  - No members are automatically removed; the admin must manually reduce the member count.
+  - Once the member count is within the limit, normal access is restored for all.
+- This logic should be enforced in a top-level layout, provider, or middleware to ensure consistency across the app.
+- This is a common SaaS pattern and provides a clear, user-friendly way to handle overages after a downgrade.
+
+---
+
 _Last updated: July 2, 2025_
