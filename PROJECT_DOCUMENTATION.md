@@ -181,6 +181,7 @@ This integration will enable bands to subscribe to the portal using Stripe for r
 
 ### Key Features
 - Secure, recurring billing via Stripe (monthly or annual plans)
+- **Each subscription tier is a separate Stripe Product.** (Do not use multiple Prices under a single Product for tiers.)
 - Stripe Checkout for new subscriptions (off-site, branded, supports Apple Pay, Google Pay, ACH, etc.)
 - Stripe Customer Portal for managing billing, updating payment methods, viewing invoices, and cancelling
 - Webhook-driven automation for access control and Kajabi revocation
@@ -191,34 +192,64 @@ This integration will enable bands to subscribe to the portal using Stripe for r
 - Add to `bands` table:
   - `stripe_customer_id`
   - `stripe_subscription_id`
+  - `stripe_product_id` (**NEW: stores the active Stripe Product ID for the band's tier**)
   - `subscription_status` (e.g., active, lapsed, cancelled)
   - `current_period_end` (timestamp for next renewal)
+
+### Tier Mapping & Features
+- **Each tier is a separate Stripe Product.**
+- Maintain a mapping of Stripe Product IDs to internal tier names and features (lesson/member limits, etc.).
+- Example:
+
+```typescript
+// src/lib/stripeTiers.ts
+export const STRIPE_PRODUCT_TIERS = {
+  'prod_ABC123': { name: 'Starter', lessonLimit: 5, memberLimit: 3 },
+  'prod_DEF456': { name: 'Pro', lessonLimit: 20, memberLimit: 10 },
+  'prod_GHI789': { name: 'Elite', lessonLimit: 100, memberLimit: 30 },
+};
+```
+- Use this mapping in both the webhook handler and the UI to display the current tier and enforce limits.
 
 ### User/Admin Flows
 1. **Start Subscription**
    - Admin clicks “Start Subscription” in the dashboard
    - App calls `/api/stripe/create-checkout-session` and redirects to Stripe Checkout
    - Admin completes payment; Stripe redirects back to portal
-   - Webhook updates band status to `active`, stores Stripe IDs, and sets `current_period_end`
+   - Webhook updates band status to `active`, stores Stripe IDs, **stores the Product ID as `stripe_product_id`**, and sets `current_period_end`
+   - App updates lesson/member limits/features based on the active Product
 
-2. **Manage Subscription**
+2. **Switch/Upgrade/Downgrade Tier**
+   - Admin uses Stripe Customer Portal to change plan (switches Product)
+   - Stripe handles proration and billing
+   - Webhook receives `customer.subscription.updated` event, updates `stripe_product_id` and all relevant fields
+   - App updates lesson/member limits/features based on the new Product
+
+3. **Manage Subscription**
    - Admin clicks “Manage Billing”
    - App calls `/api/stripe/create-customer-portal-session` and redirects to Stripe Customer Portal
    - Admin can update payment, view invoices, cancel, etc.
 
-3. **Renewal & Reminders**
+4. **Renewal & Reminders**
    - Stripe sends `invoice.upcoming` webhook (default: 7 days before renewal)
    - App sends reminder email (via Resend) and/or in-app notification
    - Optionally, send additional reminders (e.g., 1 day before)
 
-4. **Payment Failure or Cancellation**
+5. **Payment Failure or Cancellation**
    - Stripe sends `invoice.payment_failed` or `customer.subscription.deleted` webhook
    - App updates band status to `lapsed` or `void`, restricts access, and triggers Kajabi revocation for all members
    - Admin receives email and in-app warning
 
-5. **Reactivation**
+6. **Reactivation**
    - Admin can restart subscription via dashboard (redirect to Stripe Checkout or Portal)
    - On payment, access is restored and Kajabi can be reactivated
+
+### Webhook Logic
+- On relevant Stripe events (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`):
+  - Extract the active Product ID from the subscription object.
+  - Update the band's `stripe_product_id` in the database.
+  - Use the Product ID to look up the tier/features and update lesson/member limits accordingly.
+  - Log all updates for audit/debugging.
 
 ### API Endpoints
 - `/api/stripe/create-checkout-session` (POST):
@@ -227,7 +258,7 @@ This integration will enable bands to subscribe to the portal using Stripe for r
   - Authenticates admin, creates Stripe Customer Portal session, returns URL
 - `/api/stripe/webhook` (POST):
   - Handles all relevant Stripe events (checkout completed, invoice upcoming, payment failed, subscription deleted/updated)
-  - Updates band status, sends reminders, triggers Kajabi revocation as needed
+  - Updates band status, stores Product ID, updates limits/features, sends reminders, triggers Kajabi revocation as needed
 
 ### Security
 - All Stripe secret keys and webhook signing secrets are stored in environment variables
@@ -253,7 +284,20 @@ This integration will enable bands to subscribe to the portal using Stripe for r
 - Log all subscription changes for audit/support
 - Test thoroughly in Stripe test mode before going live
 
-### Stripe Sandbox & Go-Live Protocol
+### Pricing & Plan Selection UX (2025 Update)
+
+- Stripe Checkout does not support displaying multiple subscription options for user selection in a single session.
+- The app should present a pricing table or graph in the UI, showing each tier's features, limits, and price.
+- Each tier should have a clear “Select” or “Start” button.
+- When a user clicks a tier, the app creates a Stripe Checkout Session for that tier’s Price ID and redirects the user to Stripe Checkout.
+- Add a note such as: “You can change your plan at any time in the billing portal after checkout.”
+- If you want to let users enter a desired number of users, map their selection to the closest tier and show the corresponding option, or use per-seat pricing (not currently implemented).
+- After initial purchase, users can upgrade/downgrade in the Stripe Customer Portal, which handles proration and switching between products/tiers.
+- This approach matches common SaaS UX patterns and provides clarity and flexibility for users.
+
+---
+
+## Stripe Sandbox & Go-Live Protocol
 
 #### Stripe Sandbox (Test Mode)
 - Use Stripe “test” secret and publishable keys in `.env.local`.
@@ -287,4 +331,4 @@ This integration will enable bands to subscribe to the portal using Stripe for r
 
 ---
 
-_Last updated: June 25, 2025_
+_Last updated: July 2, 2025_
