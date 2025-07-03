@@ -92,7 +92,35 @@ export default function Home() {
       <UserLogger />
       <div className="max-w-2xl mx-auto py-16">
         <h1 className="text-3xl font-bold mb-6">Welcome, {user.email}!</h1>
-        <h2 className="text-xl font-semibold mb-4">Your Bands</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Your Bands</h2>
+          <button
+            className="text-blue-600 underline font-semibold"
+            onClick={async () => {
+              const bandName = window.prompt("Enter a name for your new band:");
+              if (!bandName) return;
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error("Not authenticated");
+                const { data: band, error: bandError } = await supabase
+                  .from('bands')
+                  .insert({ name: bandName })
+                  .select()
+                  .maybeSingle();
+                if (bandError || !band) throw new Error(bandError?.message || "Failed to create band");
+                const { error: memberError } = await supabase
+                  .from('band_members')
+                  .insert({ user_id: user.id, band_id: band.id, role: 'admin' });
+                if (memberError) throw new Error(memberError.message);
+                setBands((prev) => [...prev, { ...band, role: 'admin' }]);
+              } catch (err: any) {
+                alert(err.message || "Failed to create band");
+              }
+            }}
+          >
+            + Create Band
+          </button>
+        </div>
         {bands.length === 0 ? (
           <p>You are not a member of any bands yet.</p>
         ) : (

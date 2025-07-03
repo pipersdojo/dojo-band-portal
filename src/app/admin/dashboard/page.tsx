@@ -44,6 +44,9 @@ export default function AdminDashboard() {
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [userLimit, setUserLimit] = useState<number | undefined>(undefined);
+  const [newBandName, setNewBandName] = useState("");
+  const [creatingBand, setCreatingBand] = useState(false);
+  const [createBandError, setCreateBandError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -190,6 +193,37 @@ export default function AdminDashboard() {
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
 
+  // Add band creation handler
+  const handleCreateBand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingBand(true);
+    setCreateBandError("");
+    try {
+      // Fetch current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      // Create band
+      const { data: band, error: bandError } = await supabase
+        .from('bands')
+        .insert({ name: newBandName })
+        .select()
+        .maybeSingle();
+      if (bandError || !band) throw new Error(bandError?.message || "Failed to create band");
+      // Add user as admin
+      const { error: memberError } = await supabase
+        .from('band_members')
+        .insert({ user_id: user.id, band_id: band.id, role: 'admin' });
+      if (memberError) throw new Error(memberError.message);
+      setNewBandName("");
+      // Refresh bands
+      setBands((prev) => [...prev, band]);
+      setSelectedBand(band);
+    } catch (err: any) {
+      setCreateBandError(err.message || "Failed to create band");
+    }
+    setCreatingBand(false);
+  };
+
   return (
     <>
       <UserLogger />
@@ -197,6 +231,7 @@ export default function AdminDashboard() {
         <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-2">My Bands</h2>
+          {/* Removed Add Band Form - now handled in AppNav */}
           <div className="mb-4">
             {bands.length > 1 && !selectedBand && (
               <select
