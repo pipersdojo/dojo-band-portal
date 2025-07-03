@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { TierPricingTable } from "@/components/TierPricingTable";
 import { STRIPE_PRODUCT_TIERS } from "@/lib/stripeTiers";
 import { BandRestrictionBanner } from './BandRestrictionBanner';
+import { deleteBand } from "@/app/actions/fetchBands";
 
 // Admin Dashboard for managing band members and invites
 import { useEffect, useState } from 'react';
@@ -47,6 +48,8 @@ export default function AdminDashboard() {
   const [newBandName, setNewBandName] = useState("");
   const [creatingBand, setCreatingBand] = useState(false);
   const [createBandError, setCreateBandError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -224,6 +227,34 @@ export default function AdminDashboard() {
     setCreatingBand(false);
   };
 
+  async function handleDeleteBand() {
+    if (!selectedBand) return;
+    if (!confirm(`Are you sure you want to delete the band "${selectedBand.name}" and all its data? This cannot be undone.`)) return;
+    setDeleting(true);
+    setDeleteError("");
+    // Debug: log current user before delete
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log('[DEBUG] Current user before delete:', user);
+    if (!user) {
+      setDeleteError('Not authenticated.');
+      alert('Not authenticated.');
+      setDeleting(false);
+      return;
+    }
+    // Only run full deleteBand (no direct delete)
+    const result = await deleteBand(selectedBand.id);
+    console.log('[DEBUG] deleteBand result:', result); // <--- DEBUG LOG
+    if (result.error) {
+      setDeleteError(result.error);
+      alert('Delete error: ' + result.error); // <--- DEBUG ALERT
+    } else {
+      setBands(bands.filter(b => b.id !== selectedBand.id));
+      setSelectedBand(null);
+      router.push('/'); // <--- Redirect to main dashboard after delete
+    }
+    setDeleting(false);
+  }
+
   return (
     <>
       <UserLogger />
@@ -235,7 +266,7 @@ export default function AdminDashboard() {
           <div className="mb-4">
             {bands.length > 1 && !selectedBand && (
               <select
-                value={selectedBand?.id || ''}
+                value={selectedBand ? selectedBand.id : ''}
                 onChange={e => {
                   const band = bands.find((b: Band) => b.id === e.target.value);
                   setSelectedBand(band || null);
@@ -243,7 +274,7 @@ export default function AdminDashboard() {
                 className="border rounded px-2 py-1"
               >
                 <option value="" disabled>Select a band</option>
-                {bands.map((band) => (
+                {bands.map((band: Band) => (
                   <option key={band.id} value={band.id}>{band.name}</option>
                 ))}
               </select>
@@ -251,17 +282,27 @@ export default function AdminDashboard() {
             {selectedBand && <span>{selectedBand.name}</span>}
             {bands.length === 0 && <span>No bands found.</span>}
           </div>
-        </section>
-        {selectedBand && (
-          <>
-            <div className="mb-4">
+          {selectedBand && (
+            <div className="mb-4 flex items-center gap-4">
               <a
                 href={`/band/${selectedBand.id}`}
                 className="text-blue-600 underline"
               >
                 View Band Page
               </a>
+              <button
+                className="bg-red-600 text-white px-4 py-2 rounded font-semibold hover:bg-red-700 transition disabled:opacity-60"
+                onClick={handleDeleteBand}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete Band"}
+              </button>
             </div>
+          )}
+          {deleteError && <div className="text-red-600 mb-2">{deleteError}</div>}
+        </section>
+        {selectedBand && (
+          <>
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-2">Band Members</h2>
               {/* Restriction banner for this band */}

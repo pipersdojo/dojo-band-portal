@@ -143,3 +143,15 @@ create policy "Band members can view invitations" on invitations
     where band_members.band_id = invitations.band_id
       and band_members.user_id = auth.uid()
   ));
+
+-- Allow any authenticated user to insert a band
+create policy "Authenticated users can insert bands" on bands
+  for insert
+  to authenticated
+  with check (true);
+
+-- Allow authenticated users to add themselves as a member/admin to a band
+create policy "Authenticated users can add themselves to band_members" on band_members
+  for insert
+  to authenticated
+  with check (user_id = auth.uid());
