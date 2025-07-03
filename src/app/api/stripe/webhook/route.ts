@@ -3,9 +3,7 @@ import Stripe from 'stripe';
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16', // Use a stable, official Stripe API version
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const sig = req.headers.get('stripe-signature');

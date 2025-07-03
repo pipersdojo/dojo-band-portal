@@ -1,7 +1,14 @@
 // src/lib/stripeTiers.ts
 // Mapping of Stripe Product IDs to tier details for Dojo U Corps
 
-export const STRIPE_PRODUCT_TIERS = {
+export interface StripeTier {
+  name: string;
+  priceId: string;
+  yearlyPrice: number;
+  memberLimit: number;
+}
+
+export const STRIPE_PRODUCT_TIERS: Record<string, StripeTier> = {
   'prod_SbQUcKNsgCqD0B': {
     name: 'Dojo U Corps (0-10 Members)',
     priceId: 'price_1RgDdBGaCjXRja84vAkRZMMY',

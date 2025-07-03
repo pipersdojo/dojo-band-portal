@@ -31,6 +31,7 @@ interface Invite {
 interface Band {
   id: string;
   name: string;
+  // Add other properties if needed
 }
 
 export default function AdminDashboard() {
@@ -86,8 +87,8 @@ export default function AdminDashboard() {
         }
         const adminBands = (bandMemberships || []).filter((bm: any) => bm.role === 'admin').map((bm: any) => bm.band).filter((b: any) => b && b.id && b.name);
         const bandsList = (bandMemberships || [])
-          .map((bm: any) => bm.band)
-          .filter((b: any) => b && b.id && b.name);
+          .map((bm: any) => bm.band as Band)
+          .filter((b): b is Band => Boolean(b && b.id && b.name));
         setBands(bandsList);
         // If user is not an admin of any band, redirect
         if (adminBands.length === 0) {
@@ -255,6 +256,11 @@ export default function AdminDashboard() {
     setDeleting(false);
   }
 
+  // Helper to safely get selectedBand id for select value
+  function getSelectedBandId(selectedBand: Band | null): string {
+    return selectedBand && typeof selectedBand.id === 'string' ? selectedBand.id : '';
+  }
+
   return (
     <>
       <UserLogger />
@@ -266,10 +272,10 @@ export default function AdminDashboard() {
           <div className="mb-4">
             {bands.length > 1 && !selectedBand && (
               <select
-                value={selectedBand ? selectedBand.id : ''}
+                value={getSelectedBandId(selectedBand)}
                 onChange={e => {
-                  const band = bands.find((b: Band) => b.id === e.target.value);
-                  setSelectedBand(band || null);
+                  const band = bands.find((b: Band) => b.id === e.target.value) || null;
+                  setSelectedBand(band);
                 }}
                 className="border rounded px-2 py-1"
               >
@@ -540,8 +546,8 @@ function BillingSection({ selectedBand }: { selectedBand: Band }) {
       const { data: { user } } = await supabase.auth.getUser();
       setUserEmail(user?.email || null);
       // Get tier info from STRIPE_PRODUCT_TIERS
-      if (band?.stripe_product_id && STRIPE_PRODUCT_TIERS[band.stripe_product_id]) {
-        setTierInfo(STRIPE_PRODUCT_TIERS[band.stripe_product_id]);
+      if (band?.stripe_product_id && STRIPE_PRODUCT_TIERS[band.stripe_product_id as string]) {
+        setTierInfo(STRIPE_PRODUCT_TIERS[band.stripe_product_id as string]);
       } else {
         setTierInfo(null);
       }

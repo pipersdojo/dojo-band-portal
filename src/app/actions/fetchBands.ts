@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { getUser } from '@/lib/supabase'; // If you have a helper to get the current user
 
 export async function fetchBands() {
   const { data, error } = await supabase.from('bands').select('*');
